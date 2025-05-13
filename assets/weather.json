@@ -1,0 +1,21 @@
+[
+
+  {
+    "city": "Białystok",
+    "temperature": 5,
+    "cloudiness": "partly cloudy",
+    "wind": { "speed": 12, "direction": "NW" },
+    "precipitation": {
+      "type": "snow",
+      "amount": 2
+    },
+    "iconUrl": "https://example.com/icons/snow.png",
+    "coordinates": { "lat": 53.1325, "lon": 23.1688 },
+    "forecast": [
+      { "hour": 9, "temp": 3 },
+      { "hour": 12, "temp": 5 }
+    ],
+    "region": "Podlaskie",
+    "updated": "2025-05-08T08:00:00Z"
+  }
+]
