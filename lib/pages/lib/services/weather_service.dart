@@ -5,7 +5,5 @@ Future<List<CityWeather>> loadWeather() async {
 
   // Make sure to always return a non-null List<CityWeather>
   // For example:
-
   return []; // Return empty list as fallback if needed
 }
-

@@ -17,13 +17,11 @@ class CityWeather {
     required this.wind,
     required this.precipitation,
     required this.iconUrl,
-
     required this.coordinates,
     required this.forecast,
     required this.region,
     required this.updated,
   });
-
 
   factory CityWeather.fromJson(Map<String, dynamic> json) => CityWeather(
     city: json['city'],
