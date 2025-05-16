@@ -1,125 +1,218 @@
-import "lib/models/city_weather.dart";
+import 'package:flutter/material.dart';
+import '../models/city_weather.dart';
+import '../services/weather_service.dart';
 
+class WeatherPage extends StatefulWidget {
+  const WeatherPage({super.key});
 
-class CityWeather {
-  final String city;
-  final int temperature;
-  final String cloudiness;
-  final Wind wind;
-  final Precipitation precipitation;
-  final String iconUrl;
-  final Coordinates coordinates;
-  final List<Forecast> forecast;
+  @override
+  State<WeatherPage> createState() => _WeatherPageState();
+}
+
+class _WeatherPageState extends State<WeatherPage> {
+  final WeatherService _weatherService = WeatherService();
+  List<CityWeather> weatherData = [];
+  bool isLoading = true;
+  int currentIndex = 0; // Track the current city index
+
+  @override
+  void initState() {
+    super.initState();
+    loadWeatherData();
+  }
+
+  Future<void> loadWeatherData() async {
+    try {
+      final data = await _weatherService.fetchWeatherData();
+      setState(() {
+        weatherData = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading weather data: $e');
+
+      // Attempt to load local data if network fetch fails
+      try {
+        final localData = await _weatherService.fetchWeatherData();
+        setState(() {
+          weatherData = localData;
+          isLoading = false;
+        });
+      } catch (e) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Weather App'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {
+                isLoading = true;
+              });
+              loadWeatherData();
+            },
+          ),
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : weatherData.isEmpty
+          ? const Center(child: Text('No weather data available'))
+          : Column(
+        children: [
+          Expanded(
+            child: WeatherCard(weather: weatherData[currentIndex]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (currentIndex > 0)
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        currentIndex--;
+                      });
+                    },
+                    child: const Text('Previous'),
+                  ),
+                const SizedBox(width: 16),
+                if (currentIndex < weatherData.length - 1)
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        currentIndex++;
+                      });
+                    },
+                    child: const Text('Next'),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class WeatherCard extends StatelessWidget {
+  final CityWeather weather;
+
+  const WeatherCard({super.key, required this.weather});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  weather.city,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                Text(
+                  '${weather.temperature}°C',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Create a new widget for "Region"
+            RegionWidget(region: weather.region), // Use the RegionWidget
+            Text('Cloudiness: ${weather.cloudiness}'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.air),
+                Text(' Wind: ${weather.wind.speed} km/h ${weather.wind.direction}'),
+              ],
+            ),
+            Row(
+              children: [
+                _getPrecipitationIcon(weather.precipitation.type),
+                Text(' ${weather.precipitation.type}: ${weather.precipitation.amount} mm'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text('Forecast:', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 60,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: weather.forecast.length,
+                itemBuilder: (context, index) {
+                  final forecast = weather.forecast[index];
+                  return Container(
+                    margin: const EdgeInsets.only(right: 16),
+                    child: Column(
+                      children: [
+                        Text('${forecast.hour}:00'),
+                        const SizedBox(height: 4),
+                        Text('${forecast.temp}°C',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Last updated: ${_formatDate(weather.updated)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Icon _getPrecipitationIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'rain':
+        return const Icon(Icons.water_drop);
+      case 'snow':
+        return const Icon(Icons.ac_unit);
+      default:
+        return const Icon(Icons.cloud);
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// New widget for "Region"
+class RegionWidget extends StatelessWidget {
   final String region;
-  final DateTime updated;
 
-  CityWeather({
-    required this.city,
-    required this.temperature,
-    required this.cloudiness,
-    required this.wind,
-    required this.precipitation,
-    required this.iconUrl,
-    required this.coordinates,
-    required this.forecast,
-    required this.region,
-    required this.updated,
-  });
+  const RegionWidget({super.key, required this.region});
 
-  factory CityWeather.fromJson(Map<String, dynamic> json) => CityWeather(
-    city: json['city'],
-    temperature: json['temperature'],
-    cloudiness: json['cloudiness'],
-    wind: Wind.fromJson(json['wind']),
-    precipitation: Precipitation.fromJson(json['precipitation']),
-    iconUrl: json['iconUrl'],
-    coordinates: Coordinates.fromJson(json['coordinates']),
-    forecast: (json['forecast'] as List).map((e) => Forecast.fromJson(e)).toList(),
-    region: json['region'],
-    updated: DateTime.parse(json['updated']),
-  );
-
-  // Metoda do serializacji obiektu do JSON
-  Map<String, dynamic> toJson() => {
-    'city': city,
-    'temperature': temperature,
-    'cloudiness': cloudiness,
-    'wind': wind.toJson(),
-    'precipitation': precipitation.toJson(),
-    'iconUrl': iconUrl,
-    'coordinates': coordinates.toJson(),
-    'forecast': forecast.map((e) => e.toJson()).toList(),
-    'region': region,
-    'updated': updated.toIso8601String(),
-  };
-}
-
-class Wind {
-  final int speed;
-  final String direction;
-
-  Wind({
-    required this.speed,
-    required this.direction
-  });
-
-  factory Wind.fromJson(Map<String, dynamic> json) =>
-      Wind(speed: json['speed'], direction: json['direction']);
-
-  Map<String, dynamic> toJson() => {
-    'speed': speed,
-    'direction': direction,
-  };
-}
-
-class Precipitation {
-  final String type;
-  final int amount;
-
-  Precipitation({
-    required this.type,
-    required this.amount
-  });
-
-  factory Precipitation.fromJson(Map<String, dynamic> json) =>
-      Precipitation(type: json['type'], amount: json['amount']);
-
-  Map<String, dynamic> toJson() => {
-    'type': type,
-    'amount': amount,
-  };
-}
-
-class Coordinates {
-  final double lat, lon;
-
-  Coordinates({
-    required this.lat,
-    required this.lon
-  });
-
-  factory Coordinates.fromJson(Map<String, dynamic> json) =>
-      Coordinates(lat: json['lat'], lon: json['lon']);
-
-  Map<String, dynamic> toJson() => {
-    'lat': lat,
-    'lon': lon,
-  };
-}
-
-class Forecast {
-  final int hour, temp;
-
-  Forecast({
-    required this.hour,
-    required this.temp
-  });
-
-  factory Forecast.fromJson(Map<String, dynamic> json) =>
-      Forecast(hour: json['hour'], temp: json['temp']);
-
-  Map<String, dynamic> toJson() => {
-    'hour': hour,
-    'temp': temp,
-  };
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0), // Add padding to the bottom
+      child: Text('Region: $region'),
+    );
+  }
 }

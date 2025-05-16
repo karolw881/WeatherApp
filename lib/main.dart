@@ -1,14 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:weather_app_x/pages/lib/models/city_weather.dart';
-import 'models/city_weather.dart';
+import '../models/city_weather.dart';
+import '../services/weather_service.dart';
+
 
 void main() {
   runApp(const MyApp());
 }
-
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -18,8 +15,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Weather App',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
+        primarySwatch: Colors.blue,
       ),
       home: const WeatherPage(),
     );
@@ -34,8 +30,10 @@ class WeatherPage extends StatefulWidget {
 }
 
 class _WeatherPageState extends State<WeatherPage> {
+  final WeatherService _weatherService = WeatherService();
   List<CityWeather> weatherData = [];
   bool isLoading = true;
+  int currentIndex = 0; // Track the current city index
 
   @override
   void initState() {
@@ -45,19 +43,26 @@ class _WeatherPageState extends State<WeatherPage> {
 
   Future<void> loadWeatherData() async {
     try {
-      // Load the JSON file from assets
-      final String jsonString = await rootBundle.loadString('assets/weather.json');
-      final List<dynamic> jsonData = json.decode(jsonString);
-
+      final data = await _weatherService.fetchWeatherData();
       setState(() {
-        weatherData = jsonData.map((data) => CityWeather.fromJson(data)).toList();
+        weatherData = data;
         isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
       debugPrint('Error loading weather data: $e');
+
+      // Attempt to load local data if network fetch fails
+      try {
+        final localData = await _weatherService.fetchWeatherData();
+        setState(() {
+          weatherData = localData;
+          isLoading = false;
+        });
+      } catch (e) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -66,18 +71,55 @@ class _WeatherPageState extends State<WeatherPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Weather App'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {
+                isLoading = true;
+              });
+              loadWeatherData();
+            },
+          ),
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : weatherData.isEmpty
           ? const Center(child: Text('No weather data available'))
-          : ListView.builder(
-        itemCount: weatherData.length,
-        itemBuilder: (context, index) {
-          final weather = weatherData[index];
-          return WeatherCard(weather: weather);
-        },
+          : Column(
+        children: [
+          Expanded(
+            child: WeatherCard(weather: weatherData[currentIndex]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (currentIndex > 0)
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        currentIndex--;
+                      });
+                    },
+                    child: const Text('Previous'),
+                  ),
+                const SizedBox(width: 16),
+                if (currentIndex < weatherData.length - 1)
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        currentIndex++;
+                      });
+                    },
+                    child: const Text('Next'),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -112,7 +154,7 @@ class WeatherCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text('Region: ${weather.region}'),
+            RegionWidget(region: weather.region),
             Text('Cloudiness: ${weather.cloudiness}'),
             const SizedBox(height: 8),
             Row(
@@ -130,28 +172,8 @@ class WeatherCard extends StatelessWidget {
             const SizedBox(height: 16),
             Text('Forecast:', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            SizedBox(
-              height: 60,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: weather.forecast.length,
-                itemBuilder: (context, index) {
-                  final forecast = weather.forecast[index];
-                  return Container(
-                    margin: const EdgeInsets.only(right: 16),
-                    child: Column(
-                      children: [
-                        Text('${forecast.hour}:00'),
-                        const SizedBox(height: 4),
-                        Text('${forecast.temp}°C',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
+            // Create a new widget for "Forecast"
+            ForecastWidget(forecast: weather.forecast), // Use ForecastWidget
             const SizedBox(height: 8),
             Text(
               'Last updated: ${_formatDate(weather.updated)}',
@@ -176,5 +198,53 @@ class WeatherCard extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// New widget for "Region"
+class RegionWidget extends StatelessWidget {
+  final String region;
+
+  const RegionWidget({super.key, required this.region});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0), // Add padding to the bottom
+      child: Text('Region: $region'),
+    );
+  }
+}
+
+// New widget for "Forecast"
+class ForecastWidget extends StatelessWidget {
+  final List<Forecast> forecast;
+
+  const ForecastWidget({super.key, required this.forecast});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 60,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: forecast.length,
+        itemBuilder: (context, index) {
+          final forecastItem = forecast[index];
+          return Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: Column(
+              children: [
+                Text('${forecastItem.hour}:00'),
+                const SizedBox(height: 4),
+                Text('${forecastItem.temp}°C',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 }
