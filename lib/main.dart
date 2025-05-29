@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/city_weather.dart';
 import '../services/weather_service.dart';
 
-
 void main() {
   runApp(const MyApp());
 }
@@ -33,7 +32,7 @@ class _WeatherPageState extends State<WeatherPage> {
   final WeatherService _weatherService = WeatherService();
   List<CityWeather> weatherData = [];
   bool isLoading = true;
-  int currentIndex = 0; // Track the current city index
+  int currentIndex = 0;
 
   @override
   void initState() {
@@ -51,7 +50,6 @@ class _WeatherPageState extends State<WeatherPage> {
     } catch (e) {
       debugPrint('Error loading weather data: $e');
 
-      // Attempt to load local data if network fetch fails
       try {
         final localData = await _weatherService.fetchWeatherData();
         setState(() {
@@ -170,10 +168,11 @@ class WeatherCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Text('Forecast:', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            // Create a new widget for "Forecast"
-            ForecastWidget(forecast: weather.forecast), // Use ForecastWidget
+            // Clickable Forecast Widget
+            ForecastClickableWidget(
+              forecast: weather.forecast,
+              cityName: weather.city,
+            ),
             const SizedBox(height: 8),
             Text(
               'Last updated: ${_formatDate(weather.updated)}',
@@ -201,7 +200,7 @@ class WeatherCard extends StatelessWidget {
   }
 }
 
-// New widget for "Region"
+// Widget for "Region"
 class RegionWidget extends StatelessWidget {
   final String region;
 
@@ -210,40 +209,146 @@ class RegionWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0), // Add padding to the bottom
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: Text('Region: $region'),
     );
   }
 }
 
-// New widget for "Forecast"
-class ForecastWidget extends StatelessWidget {
+// Clickable widget that shows forecast preview and opens detailed view
+class ForecastClickableWidget extends StatelessWidget {
   final List<Forecast> forecast;
+  final String cityName;
 
-  const ForecastWidget({super.key, required this.forecast});
+  const ForecastClickableWidget({
+    super.key,
+    required this.forecast,
+    required this.cityName
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 60,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: forecast.length,
-        itemBuilder: (context, index) {
-          final forecastItem = forecast[index];
-          return Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: Column(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ForecastDetailPage(
+              forecast: forecast,
+              cityName: cityName,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12.0),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(8.0),
+          border: Border.all(color: Colors.blue.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${forecastItem.hour}:00'),
-                const SizedBox(height: 4),
-                Text('${forecastItem.temp}°C',
+                Text(
+                  'Forecast:',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
+                const Icon(Icons.arrow_forward_ios, size: 16),
               ],
             ),
+            const SizedBox(height: 8),
+            ForecastPreviewWidget(forecast: forecast),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Preview widget showing first few forecast items
+class ForecastPreviewWidget extends StatelessWidget {
+  final List<Forecast> forecast;
+
+  const ForecastPreviewWidget({super.key, required this.forecast});
+
+  @override
+  Widget build(BuildContext context) {
+    // Show only first 4 items in preview
+    final previewItems = forecast.take(4).toList();
+
+    return SizedBox(
+      height: 60,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: previewItems.map((forecastItem) {
+          return Column(
+            children: [
+              Text('${forecastItem.hour}:00'),
+              const SizedBox(height: 4),
+              Text(
+                '${forecastItem.temp}°C',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ],
           );
-        },
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// Detailed forecast page
+class ForecastDetailPage extends StatelessWidget {
+  final List<Forecast> forecast;
+  final String cityName;
+
+  const ForecastDetailPage({
+    super.key,
+    required this.forecast,
+    required this.cityName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('$cityName - Forecast'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Hourly Forecast',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: forecast.length,
+                itemBuilder: (context, index) {
+                  final item = forecast[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8.0),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        child: Text('${item.hour}h'),
+                      ),
+                      title: Text('${item.temp}°C'),
+                      subtitle: Text('Hour: ${item.hour}:00'),
+                      trailing: const Icon(Icons.thermostat),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
