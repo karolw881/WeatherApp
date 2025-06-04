@@ -13,12 +13,12 @@ class _WeatherPageState extends State<WeatherPage> {
   final WeatherService _weatherService = WeatherService();
   List<CityWeather> weatherData = [];
   bool isLoading = true;
-  int currentIndex = 0; // Track the current city index
+  int currentIndex = 0; // Do sledzenia indexu obecnego miasta
 
   @override
   void initState() {
     super.initState();
-    loadWeatherData();
+    loadWeatherData(); // laduj dane
   }
 
   Future<void> loadWeatherData() async {
@@ -31,7 +31,7 @@ class _WeatherPageState extends State<WeatherPage> {
     } catch (e) {
       debugPrint('Error loading weather data: $e');
 
-      // Attempt to load local data if network fetch fails
+      // laduj dane jesli polaczenie internetowe zawiedzie
       try {
         final localData = await _weatherService.fetchWeatherData();
         setState(() {

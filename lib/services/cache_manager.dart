@@ -7,9 +7,9 @@ class WeatherCacheManager {
 
   static final CacheManager instance = CacheManager(
     Config(
-      key,
-      stalePeriod: const Duration(hours: 1),
-      maxNrOfCacheObjects: 20,
+      key, // unikalny klucz
+      stalePeriod: const Duration(hours: 1), // Swiezosc danych ustaiona na godzinke
+      maxNrOfCacheObjects: 20, //Maksymalna ilosc
       repo: JsonCacheInfoRepository(databaseName: key),
       fileService: HttpFileService(),
     ),

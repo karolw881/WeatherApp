@@ -9,11 +9,11 @@ class WeatherService {
 
   Future<List<CityWeather>> fetchWeatherData() async {
     try {
-      // Try to get data from cache first
+      // Sprobuj zaladowac dane z cache na poczatku
       final fileInfo = await WeatherCacheManager.instance.getFileFromCache(apiUrl);
 
       if (fileInfo != null && !fileInfo.file.path.isEmpty) {
-        // If cached data exists and is not expired, use it
+        // Jesli istnieja lub nie wygasly
         final fileContents = await fileInfo.file.readAsString();
         final List<dynamic> jsonData = json.decode(fileContents);
         return jsonData
@@ -21,11 +21,11 @@ class WeatherService {
             .toList();
       }
 
-      // If not in cache or expired, fetch from network
+      // Jesli z pamieci podrecznej nie zaladuje, obierz z internetu
       final response = await http.get(Uri.parse(apiUrl));
 
       if (response.statusCode == 200) {
-        // Save to cache
+        // zapisz do pamieci podrecznej
         await WeatherCacheManager.instance.putFile(
           apiUrl,
           response.bodyBytes,

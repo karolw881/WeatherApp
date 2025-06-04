@@ -21,7 +21,6 @@ version: 1.0.0+1
 environment:
   sdk: ^3.7.2
 
-
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -38,7 +37,7 @@ dependencies:
   http: ^0.13.5
   cached_network_image: ^3.2.3
   flutter_cache_manager: ^3.3.0
-  path_provider: ^2.0.14
+  sqflite: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -61,8 +60,6 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
-
 
   # To add assets to your application, add an assets section, like this:
   # assets:
