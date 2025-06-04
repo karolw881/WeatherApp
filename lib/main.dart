@@ -168,10 +168,9 @@ class WeatherCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            // Clickable Forecast Widget
-            ForecastClickableWidget(
+            // Expandable Forecast Widget
+            ForecastExpandableWidget(
               forecast: weather.forecast,
-              cityName: weather.city,
             ),
             const SizedBox(height: 8),
             Text(
@@ -215,55 +214,171 @@ class RegionWidget extends StatelessWidget {
   }
 }
 
-// Clickable widget that shows forecast preview and opens detailed view
-class ForecastClickableWidget extends StatelessWidget {
+// Expandable widget that shows forecast preview and expands to show details
+class ForecastExpandableWidget extends StatefulWidget {
   final List<Forecast> forecast;
-  final String cityName;
 
-  const ForecastClickableWidget({
+  const ForecastExpandableWidget({
     super.key,
     required this.forecast,
-    required this.cityName
   });
 
   @override
+  State<ForecastExpandableWidget> createState() => _ForecastExpandableWidgetState();
+}
+
+class _ForecastExpandableWidgetState extends State<ForecastExpandableWidget>
+    with SingleTickerProviderStateMixin {
+  bool isExpanded = false;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _toggleExpansion() {
+    setState(() {
+      isExpanded = !isExpanded;
+    });
+
+    if (isExpanded) {
+      _animationController.forward();
+    } else {
+      _animationController.reverse();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ForecastDetailPage(
-              forecast: forecast,
-              cityName: cityName,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        children: [
+          // Header - always visible
+          GestureDetector(
+            onTap: _toggleExpansion,
+            child: Container(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Forecast:',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.25 : 0,
+                        duration: const Duration(milliseconds: 300),
+                        child: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Preview - always visible
+                  ForecastPreviewWidget(forecast: widget.forecast),
+                ],
+              ),
             ),
           ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12.0),
-        decoration: BoxDecoration(
-          color: Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(color: Colors.blue.shade200),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Forecast:',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const Icon(Icons.arrow_forward_ios, size: 16),
-              ],
+          // Expandable content
+          SizeTransition(
+            sizeFactor: _animation,
+            child: Container(
+              padding: const EdgeInsets.only(
+                left: 12.0,
+                right: 12.0,
+                bottom: 12.0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(),
+                  Text(
+                    'Detailed Hourly Forecast',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Full forecast list
+                  ...widget.forecast.map((item) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade100,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${item.hour}h',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              '${item.hour}:00',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              '${item.temp}°C',
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.thermostat,
+                              size: 16,
+                              color: Colors.orange,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  )).toList(),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            ForecastPreviewWidget(forecast: forecast),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -296,59 +411,6 @@ class ForecastPreviewWidget extends StatelessWidget {
             ],
           );
         }).toList(),
-      ),
-    );
-  }
-}
-
-// Detailed forecast page
-class ForecastDetailPage extends StatelessWidget {
-  final List<Forecast> forecast;
-  final String cityName;
-
-  const ForecastDetailPage({
-    super.key,
-    required this.forecast,
-    required this.cityName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('$cityName - Forecast'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Hourly Forecast',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: forecast.length,
-                itemBuilder: (context, index) {
-                  final item = forecast[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8.0),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        child: Text('${item.hour}h'),
-                      ),
-                      title: Text('${item.temp}°C'),
-                      subtitle: Text('Hour: ${item.hour}:00'),
-                      trailing: const Icon(Icons.thermostat),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
