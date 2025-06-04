@@ -218,6 +218,7 @@ class RegionWidget extends StatelessWidget {
 class ForecastExpandableWidget extends StatefulWidget {
   final List<Forecast> forecast;
 
+
   const ForecastExpandableWidget({
     super.key,
     required this.forecast,
